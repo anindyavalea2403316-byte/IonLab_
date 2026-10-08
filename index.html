@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ION LAB | Media Pembelajaran Kimia Kelas X</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="bg" aria-hidden="true"></div>
+
+<!-- LOGIN LOKAL: hanya identifikasi siswa di browser ini, BUKAN sistem keamanan akun -->
+<section id="login" class="screen">
+  <div class="card logincard">
+    <span data-logo></span>
+    <h1>ION LAB</h1>
+    <p class="tag">Amati, Uji, Pahami!</p>
+    <p class="muted">Laboratorium Virtual Larutan Elektrolit dan Nonelektrolit</p>
+    <svg class="labart" viewBox="0 0 220 80" aria-hidden="true"><rect x="10" y="66" width="200" height="8" rx="4" fill="#ebdfc9"/><path d="M40 20h28v14l14 32H26l14-32z" fill="#dcefe5" stroke="#5f8a6e" stroke-width="2"/><circle cx="110" cy="52" r="14" fill="#f7d6c0" stroke="#b5654a" stroke-width="2"/><rect x="104" y="26" width="12" height="12" fill="#f7d6c0" stroke="#b5654a" stroke-width="2"/><rect x="150" y="30" width="36" height="36" rx="6" fill="#d6e8f0" stroke="#7aa5b8" stroke-width="2"/><circle cx="168" cy="48" r="7" fill="#fff"/></svg>
+    <p>Topik: <b>Larutan Elektrolit dan Nonelektrolit</b> (Kimia SMA Kelas X).</p>
+    <div id="resume" hidden>
+      <p class="note">Progres tersimpan ditemukan atas nama <b id="rname"></b>.</p>
+      <button class="btn" id="btnResume">Lanjutkan Progres</button>
+      <button class="btn ghost" id="btnRestart">Mulai Ulang</button>
+    </div>
+    <label for="inName">Nama lengkap</label>
+    <input id="inName" autocomplete="name" placeholder="Nama lengkap siswa">
+    <label for="inClass">Kelas</label>
+    <input id="inClass" placeholder="Contoh: X-3">
+    <p id="loginErr" class="err" role="alert"></p>
+    <button class="btn big" id="btnStart">Mulai Pembelajaran</button>
+    <details class="devbox"><summary>Pengembang</summary><ul class="devs"></ul></details>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <div class="brand" data-brand><span data-logo></span><div><b>ION LAB</b><small>Amati, Uji, Pahami!</small></div></div>
+    <button id="burger" aria-label="Menu" aria-expanded="false">☰</button>
+    <nav id="menu">
+      <button data-act="home">Beranda</button>
+      <button data-act="pocket">Buku Saku</button>
+      <button data-act="gloss">Glosarium</button>
+      <button data-act="help">Bantuan</button>
+      <button data-act="reset" class="danger">Ulangi Progres</button>
+    </nav>
+  </header>
+  <nav id="steps" aria-label="Sembilan tahap"></nav>
+  <main id="stage" tabindex="-1"></main>
+  <div id="pager">
+    <button class="btn ghost" id="prev">← Tahap Sebelumnya</button>
+    <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i id="pfill"></i><span id="ptxt"></span></div>
+    <button class="btn" id="next">Tahap Berikutnya →</button>
+  </div>
+</div>
+
+<footer>
+  <span data-logo></span>
+  <p><b>ION LAB — Media Pembelajaran Kimia</b> · Pengembang:</p>
+  <ul class="devs"></ul>
+</footer>
+
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="mbox"><button class="mclose" id="mclose" aria-label="Tutup">✕</button><h2 id="mtitle"></h2><div id="mbody"></div></div>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="script.js"></script>
+</body>
+</html>
