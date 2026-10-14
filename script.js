@@ -127,7 +127,7 @@ function steps(){
  $('#prev').disabled=S.stage===0;$('#next').hidden=S.stage===8;
 }
 function tryGo(n){for(let i=0;i<n;i++)if(!D[i]()){toast('Tahap '+(i+1)+' belum selesai: '+REQ[i]);return}go(n)}
-function go(n){S.stage=n;save();steps();R[n]();window.scrollTo(0,0);$('#stage').focus({preventScroll:true})}
+function go(n){dnd.ac&&dnd.ac.abort();S.stage=n;save();steps();R[n]();window.scrollTo(0,0);$('#stage').focus({preventScroll:true})}
 $('#prev').onclick=()=>go(S.stage-1);$('#next').onclick=()=>tryGo(S.stage+1);
 $('#burger').onclick=()=>{const o=$('#menu').classList.toggle('open');$('#burger').setAttribute('aria-expanded',o)};
 $$('#menu button').forEach(b=>b.onclick=()=>{$('#menu').classList.remove('open');({home:()=>go(0),pocket:pocket,gloss:gloss,help:help,reset:()=>{if(confirm('Hapus SEMUA progres, jawaban, dan data pengujian di browser ini? Tindakan ini tidak dapat dibatalkan.')){S=blank();save();location.reload()}}})[b.dataset.act]()});
@@ -211,20 +211,34 @@ R[3]=()=>{const c=S.aper.ch,b=BR[c];
 
 /* ---------- DRAG & DROP GENERIK (seret atau sentuh) ---------- */
 function dnd(root,onMove,mode){let sel=null;
- root.addEventListener('dragstart',e=>{const c=e.target.closest('.chip');if(c){sel=c;e.dataTransfer.setData('text/plain','x')}});
- root.addEventListener('dragover',e=>{if(e.target.closest('.zone'))e.preventDefault()});
- root.addEventListener('drop',e=>{const z=e.target.closest('.zone');if(z&&sel){e.preventDefault();z.appendChild(sel);sel.classList.remove('sel');sel=null;onMove()}});
+ dnd.ac&&dnd.ac.abort();dnd.ac=new AbortController();const o={signal:dnd.ac.signal};
+ root.addEventListener('dragstart',e=>{const c=e.target.closest('.chip');if(c){sel=c;e.dataTransfer.setData('text/plain','x')}},o);
+ root.addEventListener('dragover',e=>{if(e.target.closest('.zone'))e.preventDefault()},o);
+ root.addEventListener('drop',e=>{const z=e.target.closest('.zone');if(z&&sel){e.preventDefault();z.appendChild(sel);sel.classList.remove('sel');sel=null;onMove()}},o);
  root.addEventListener('click',e=>{const c=e.target.closest('.chip'),z=e.target.closest('.zone');
   if(c&&mode==='toggle'){const b=c.closest('.eqb'),w=c.parentNode.dataset.z==='pool'?'ans':'pool';$(`.zone[data-z="${w}"]`,b).appendChild(c);onMove();return}
   if(c){if(sel)sel.classList.remove('sel');sel=sel===c?null:c;if(sel)sel.classList.add('sel');return}
-  if(z&&sel){z.appendChild(sel);sel.classList.remove('sel');sel=null;onMove()}})}
+  if(z&&sel){z.appendChild(sel);sel.classList.remove('sel');sel=null;onMove()}},o)}
 
 /* ---------- TAHAP 5: PREDIKSI ---------- */
-R[4]=()=>{const z=(k,t)=>`<div class="zone" data-z="${k}"><h4>${t}</h4><button class="btn sm ghost" data-z="${k}" style="display:none">Taruh di sini</button></div>`;
- $('#stage').innerHTML=`<section class="card"><h2>Prediksi: kelompokkan zat</h2><p>Seret zat ke kelompok yang menurutmu tepat. Di layar sentuh: ketuk zat, lalu ketuk kelompok tujuan. Kamu boleh mengubah penempatan. Ini <b>prediksi</b>, bukan hasil eksperimen — buktinya ada di Virtual Lab.</p><p class="note">Air keran: daya hantarnya bergantung pada kandungan ion terlarut dan dapat berbeda menurut sumber air.</p>
- <div class="zone pool" data-z="pool"><h4>Zat belum dikelompokkan</h4></div><div class="zones">${z('kuat','ELEKTROLIT KUAT')}${z('lemah','ELEKTROLIT LEMAH')}${z('non','NONELEKTROLIT')}</div><p id="pc" class="muted"></p></section>`;
+R[4]=()=>{const z=(k,t)=>`<div class="zone" data-z="${k}"><h4>${t}</h4></div>`;
+ $('#stage').innerHTML=`<section class="card"><h2>Prediksi: kelompokkan zat</h2><p>Seret zat ke kelompok yang menurutmu tepat. Di layar sentuh: ketuk zat, lalu ketuk kelompok tujuan. Benar atau salahnya langsung ditampilkan, dan kamu tetap bisa lanjut walaupun ada yang salah. Ini <b>prediksi</b>; buktinya ada di Virtual Lab.</p><p class="note">Air keran: daya hantarnya bergantung pada kandungan ion terlarut dan dapat berbeda menurut sumber air.</p>
+ <div class="zone pool" data-z="pool"><h4>Zat belum dikelompokkan</h4></div><div class="zones">${z('kuat','ELEKTROLIT KUAT')}${z('lemah','ELEKTROLIT LEMAH')}${z('non','NONELEKTROLIT')}</div><p id="pc" class="muted"></p><div id="pf"></div></section>`;
  SUB.forEach(s=>{const c=document.createElement('span');c.className='chip';c.draggable=true;c.tabIndex=0;c.dataset.id=s.id;c.textContent=s.nm;$(`.zone[data-z="${S.pred[s.id]||'pool'}"]`).appendChild(c)});
- const upd=()=>{S.pred={};$$('.chip').forEach(c=>{const k=c.parentNode.dataset.z;if(k!=='pool')S.pred[c.dataset.id]=k});save();steps();$('#pc').textContent=`${Object.keys(S.pred).length} dari 11 zat sudah ditempatkan (tersimpan otomatis).`};
+ const upd=()=>{S.pred={};const salah=[];let benar=0;
+  $$('.chip',$('#stage')).forEach(c=>{
+   c.querySelector('.mk')?.remove();c.style.background='';
+   const k=c.parentNode.dataset.z;if(k==='pool')return;
+   S.pred[c.dataset.id]=k;
+   const s=gs(c.dataset.id),ok=s.c==='tap'?k!=='non':k===s.c;
+   c.style.background=ok?'#bfe3d0':'#f7c9bd';
+   c.insertAdjacentHTML('beforeend',`<b class="mk"> ${ok?'✓':'✗'}</b>`);
+   if(ok)benar++;else salah.push(s.c==='tap'?`${s.nm}: mengandung ion terlarut, jadi termasuk elektrolit (kuat/lemah bergantung kadar ionnya).`:`${s.nm}: seharusnya ${KLAS[s.c]}.`);
+  });
+  save();steps();
+  $('#pc').textContent=`${Object.keys(S.pred).length} dari 11 zat sudah ditempatkan (tersimpan otomatis). Benar: ${benar}, salah: ${salah.length}.`;
+  $('#pf').innerHTML=salah.length?`<p><b>Yang masih keliru:</b></p><ul>${salah.map(t=>`<li>${t}</li>`).join('')}</ul><p class="muted">Tidak apa-apa, kamu tetap bisa lanjut. Buktinya akan terlihat di Virtual Lab.</p>`:'';
+ };
  dnd($('#stage'),upd,'pick');upd()};
 
 /* ---------- TAHAP 6: VIRTUAL LAB ---------- */
@@ -292,10 +306,16 @@ function chart(){const W=560,H=300,L=56,B=44,T=14,Rm=14,pw=W-L-Rm,ph=H-T-B,X=c=>
 R[6]=()=>{const hs=['Bandingkan jumlah ion yang dihasilkan 1 mol NaCl dan 1 mol CH₃COOH.','Perhatikan: pada konsentrasi sama, siapa yang menghasilkan ion lebih banyak? Lalu bandingkan titik HCl 0,001 M dengan CH₃COOH 1 M.','Terang lampu mengikuti jumlah ion total per volume = konsentrasi × derajat ionisasi × jumlah ion per rumus; jadi kekuatan elektrolit saja tidak cukup.'];
  $('#stage').innerHTML=`<section class="card"><h2>Analisis Data</h2><p><b>Pertanyaan penuntun:</b> Pada konsentrasi yang sama, mana yang lampunya lebih terang, elektrolit kuat atau lemah? Apakah hal itu berlaku pada semua konsentrasi?</p><div id="hints"></div><button class="btn ghost sm" id="hb">Petunjuk (<span id="hn">1</span>/3)</button></section>
  <section class="card"><h3>Grafik: Konsentrasi vs Intensitas Cahaya</h3>${chart()}<p class="muted">Asumsi model: elektrolit kuat terdisosiasi sempurna; elektrolit lemah α ≈ 0,013·√(0,1/c); I = ion/(ion + 0,01). Ini model ilustratif. Titik bulat penuh = pengujianmu di Virtual Lab (mode larutan). Grafik tidak berarti elektrolit lemah selalu lebih redup di semua kondisi.</p></section>
- <section class="card"><h3>Susun kriteriamu sendiri</h3><label for="crit">Larutan disebut elektrolit jika ...</label><textarea id="crit" rows="3">${esc(S.crit)}</textarea><button class="btn" id="chk">Periksa</button><div id="fb"></div><p class="muted">Pemeriksaan berbasis kata kunci konsep, bukan penilaian makna yang sempurna.</p></section>`;
+ <section class="card"><h3>Susun kriteriamu sendiri</h3><label for="crit">Berdasarkan uji larutan pada tahap 6 Virtual Lab, jawablah pertanyaan penuntun diatas! Gunakan hint jika diperlukan.</label><textarea id="crit" rows="3">${esc(S.crit)}</textarea><button class="btn" id="chk">Periksa</button><div id="fb"></div><p class="muted">Pemeriksaan berbasis kata kunci konsep, bukan penilaian makna yang sempurna.</p></section>`;
  let h=0;$('#hb').onclick=()=>{if(h<3){$('#hints').insertAdjacentHTML('beforeend',`<p class="hint"><b>Hint ${h+1}:</b> ${hs[h]}</p>`);h++;$('#hn').textContent=Math.min(h+1,3);if(h>=3)$('#hb').disabled=true}};
- $('#chk').onclick=()=>{const t=$('#crit').value.trim().toLowerCase();S.crit=$('#crit').value;const ks=[[/ion|partikel bermuatan/,'keberadaan ion'],[/bebas|bergerak|mobil/,'ion bebas bergerak'],[/listrik|hantar|lampu|muatan/,'daya hantar listrik/pembawa muatan']],f=ks.filter(k=>k[0].test(t)),ms=ks.filter(k=>!k[0].test(t));
-  S.critOk=t.length>=15&&f.length>=2;save();steps();$('#fb').innerHTML=fbHtml(S.critOk,S.critOk?`Kriteriamu memuat: ${f.map(k=>k[1]).join(', ')}.${ms.length?' Kamu bisa menambahkan: '+ms.map(k=>k[1]).join(', ')+'.':''} Contoh: “Larutan disebut elektrolit jika mengandung ion bebas yang bergerak sehingga dapat menghantarkan listrik.”`:`Kriteria belum memuat cukup konsep. Tambahkan: ${ms.map(k=>k[1]).join(', ')||'penjelasan lebih lengkap (minimal satu kalimat)'}.`)}};
+ $('#chk').onclick=()=>{const t=$('#crit').value.trim().toLowerCase();S.crit=$('#crit').value;
+  const ks=[
+   [/(kuat|nacl)/.test(t)&&/(lemah|ch₃cooh|ch3cooh|asam asetat|cuka)/.test(t)&&/(terang|banyak|ion|hantar)/.test(t),'perbandingan elektrolit kuat dan lemah pada konsentrasi sama (kuat menghasilkan lebih banyak ion sehingga lampu lebih terang)'],
+   [/(konsentrasi|pekat|encer|kadar|molar)/.test(t),'pengaruh konsentrasi terhadap terang lampu'],
+   [/(kuat|nacl)/.test(t)&&/(lemah|ch₃cooh|ch3cooh)/.test(t)&&/(pekat|tinggi|besar)/.test(t)&&/(encer|rendah|kecil|sedikit)/.test(t),'elektrolit lemah yang pekat dapat menghasilkan lebih banyak ion daripada elektrolit kuat yang sangat encer']
+  ],f=ks.filter(k=>k[0]),ms=ks.filter(k=>!k[0]);
+  S.critOk=t.length>=40&&f.length>=2;save();steps();
+  $('#fb').innerHTML=fbHtml(S.critOk,S.critOk?`Jawabanmu sudah mendekati. ${ms.length?'Agar lebih lengkap, tambahkan: '+ms.map(k=>k[1]).join('; ')+'. ':''}Contoh jawaban: “Pada konsentrasi yang sama, elektrolit kuat seperti NaCl menghasilkan lebih banyak ion sehingga lampu menyala lebih terang daripada CH₃COOH. Namun, terang lampu juga dipengaruhi oleh konsentrasi dan jumlah ion yang dihasilkan. Jadi, elektrolit lemah berkonsentrasi tinggi dapat menghasilkan lebih banyak ion daripada elektrolit kuat yang sangat encer.”`:`Jawabanmu belum sesuai. Pastikan memuat: ${ms.map(k=>k[1]).join('; ')||'penjelasan yang lebih lengkap (minimal beberapa kalimat)'}.`)}};
 
 /* ---------- TAHAP 8: PENGUATAN ---------- */
 const EQS=[['NaCl','→','Na⁺','+','Cl⁻'],['CaCl₂','→','Ca²⁺','+','2Cl⁻'],['Na₂SO₄','→','2Na⁺','+','SO₄²⁻'],['CH₃COOH','⇌','H⁺','+','CH₃COO⁻'],['NH₃','+','H₂O','⇌','NH₄⁺','+','OH⁻']];
